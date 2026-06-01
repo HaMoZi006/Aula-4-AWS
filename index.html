@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>magop3</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: url("https://seu-bucket.s3.us-east-1.amazonaws.com/imagens+e+musicas/background.jpg");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: #B9B7B7;
+      padding: 24px 0;
+    }
+
+    .card {
+      background: #2a1647;
+      border: 1px solid rgba(152, 96, 188, 0.25);
+      border-radius: 20px;
+      padding: 36px 32px 28px;
+      width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .header { text-align: center; }
+    .header h1 { font-size: 24px; font-weight: 800; letter-spacing: 1px; color: #fff; }
+    .header p  { font-size: 12px; color: #B9B7B7; margin-top: 4px; letter-spacing: 0.5px; }
+
+    .cover {
+      width: 100%; aspect-ratio: 1; border-radius: 14px; background: #3F2169;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    .cover img#coverImg {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 14px;
+      position: absolute; inset: 0; display: none;
+    }
+    .cover img#defaultIcon {
+      width: 54%; opacity: 0.85; filter: invert(1); position: relative; z-index: 1;
+    }
+
+    .track-info { text-align: center; }
+    .track-info .title { font-size: 17px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-info .subtitle { font-size: 12px; color: #B9B7B7; margin-top: 4px; }
+
+    .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .progress-bar-bg { width: 100%; height: 4px; background: #3F2169; border-radius: 2px; cursor: pointer; }
+    .progress-bar-fill { height: 100%; background: #874DB3; border-radius: 2px; width: 0%; transition: width 0.3s linear; pointer-events: none; }
+    .progress-times { display: flex; justify-content: space-between; font-size: 11px; color: #B9B7B7; }
+
+    .controls { display: flex; align-items: center; justify-content: center; gap: 24px; }
+    .btn { background: none; border: none; color: #B9B7B7; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.15s, transform 0.1s; padding: 4px; }
+    .btn:hover { color: #fff; }
+    .btn:active { transform: scale(0.9); }
+    .btn.play-btn { width: 52px; height: 52px; background: #874DB3; border-radius: 50%; color: #fff; }
+    .btn.play-btn:hover { background: #9860BC; }
+
+    .volume-wrap { display: flex; align-items: center; gap: 10px; }
+    .volume-wrap svg { color: #B9B7B7; flex-shrink: 0; }
+    input[type=range] { flex: 1; -webkit-appearance: none; height: 3px; background: #3F2169; border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: #874DB3; border-radius: 50%; cursor: pointer; }
+
+    .playlist-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .playlist-label { font-size: 11px; font-weight: 700; color: #B9B7B7; text-transform: uppercase; letter-spacing: 1.5px; }
+    .playlist { display: flex; flex-direction: column; gap: 2px; max-height: 160px; overflow-y: auto; }
+    .playlist::-webkit-scrollbar { width: 4px; }
+    .playlist::-webkit-scrollbar-track { background: transparent; }
+    .playlist::-webkit-scrollbar-thumb { background: #874DB3; border-radius: 2px; }
+    .playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.12s; font-size: 14px; color: #B9B7B7; }
+    .playlist-item:hover { background: rgba(135, 77, 179, 0.15); color: #fff; }
+    .playlist-item.active { background: rgba(135, 77, 179, 0.25); color: #fff; font-weight: 600; }
+    .playlist-item .idx { font-size: 12px; color: #B9B7B7; width: 16px; text-align: center; flex-shrink: 0; }
+    .playlist-item .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .playlist-item .btn-delete {
+      display: none; background: none; border: none; color: #B9B7B7;
+      cursor: pointer; padding: 2px; border-radius: 4px; flex-shrink: 0; transition: color 0.15s;
+    }
+    .playlist-item:hover .btn-delete { display: flex; }
+    .playlist-item .btn-delete:hover { color: #f87171; }
+
+    .divider { height: 1px; background: rgba(152, 96, 188, 0.2); border: none; }
+    .upload-wrap { display: flex; flex-direction: column; gap: 12px; }
+    .upload-label { font-size: 11px; font-weight: 700; color: #B9B7B7; text-transform: uppercase; letter-spacing: 1.5px; }
+    .upload-field { display: flex; flex-direction: column; gap: 4px; }
+    .upload-field label { font-size: 11px; color: #B9B7B7; }
+    .upload-field input[type=text] {
+      background: #3F2169; border: 1px solid rgba(152, 96, 188, 0.3); border-radius: 8px;
+      padding: 8px 12px; font-size: 13px; color: #fff; outline: none; width: 100%; transition: border-color 0.15s;
+    }
+    .upload-field input[type=text]:focus { border-color: #874DB3; }
+    .upload-field input[type=text]::placeholder { color: #6a6a8a; }
+    .file-btn {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: #3F2169; border: 1px solid rgba(152, 96, 188, 0.3); border-radius: 8px;
+      cursor: pointer; transition: background 0.12s, border-color 0.15s; font-size: 12px; color: #B9B7B7;
+    }
+    .file-btn:hover { background: rgba(135, 77, 179, 0.2); border-color: #874DB3; color: #fff; }
+    .file-btn.selected { border-color: #874DB3; color: #c4a0e0; }
+    .file-btn input[type=file] { display: none; }
+    .btn-upload {
+      width: 100%; padding: 10px; background: #874DB3; border: none; border-radius: 10px;
+      color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-upload:hover:not(:disabled) { background: #9860BC; }
+    .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+    .upload-progress { display: none; flex-direction: column; gap: 6px; }
+    .upload-progress.visible { display: flex; }
+    .upload-progress-bg { width: 100%; height: 4px; background: #3F2169; border-radius: 2px; overflow: hidden; }
+    .upload-progress-fill { height: 100%; background: linear-gradient(90deg, #874DB3, #c084fc); border-radius: 2px; width: 0%; transition: width 0.2s ease; }
+    .upload-status { font-size: 11px; color: #B9B7B7; text-align: center; }
+    .upload-status.success { color: #7dd3a8; }
+    .upload-status.error   { color: #f87171; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="header">
+    <h1>MagoP3</h1>
+    <p>O MP3 Player da monitoria de tecnologia da Asa Norte UniCEUB!</p>
+  </div>
+
+  <div class="cover" id="cover">
+    <img id="defaultIcon" src="https://seu-bucket.s3.us-east-1.amazonaws.com/imagens+e+musicas/magopng.png" alt="magop3"/>
+    <img id="coverImg" src="" alt="cover"/>
+  </div>
+
+  <div class="track-info">
+    <div class="title" id="trackTitle">Nenhuma música</div>
+    <div class="subtitle" id="trackSub">selecione uma faixa abaixo</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar-bg" id="progressBg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-times">
+      <span id="timeElapsed">0:00</span>
+      <span id="timeDuration">0:00</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="btnPrev" title="Anterior">
+      <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+    </button>
+    <button class="btn play-btn" id="btnPlay" title="Play/Pause">
+      <svg id="iconPlay"  width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg id="iconPause" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button class="btn" id="btnNext" title="Próxima">
+      <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2-8.14 5.23 2.14L8 14.14V9.86zM16 6h2v12h-2z"/></svg>
+    </button>
+  </div>
+
+  <div class="volume-wrap">
+    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8"/>
+  </div>
+
+  <div class="playlist-wrap">
+    <div class="playlist-label">Playlist</div>
+    <div class="playlist" id="playlist"></div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="upload-wrap">
+    <div class="upload-label">Adicionar Música</div>
+
+    <div class="upload-field">
+      <label>Nome da música</label>
+      <input type="text" id="uploadName" placeholder="Ex: Bohemian Rhapsody - Queen"/>
+    </div>
+
+    <div class="upload-field">
+      <label>Arquivo MP3</label>
+      <label class="file-btn" id="labelMp3">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+        <span id="labelMp3Text">Selecionar arquivo .mp3</span>
+        <input type="file" id="fileMp3" accept=".mp3,audio/mpeg"/>
+      </label>
+    </div>
+
+    <div class="upload-field">
+      <label>Capa (opcional)</label>
+      <label class="file-btn" id="labelThumb">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-1.1 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        <span id="labelThumbText">Selecionar imagem</span>
+        <input type="file" id="fileThumb" accept="image/*"/>
+      </label>
+    </div>
+
+    <button class="btn-upload" id="btnUpload" disabled>
+      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-5H3v5a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-5h-2zM13 3.828V13h-2V3.828L8.464 6.364 7.05 4.95 12 0l4.95 4.95-1.414 1.414L13 3.828z"/></svg>
+      Enviar para o S3
+    </button>
+
+    <div class="upload-progress" id="uploadProgress">
+      <div class="upload-progress-bg">
+        <div class="upload-progress-fill" id="uploadFill"></div>
+      </div>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+  </div>
+
+</div>
+
+<audio id="audio"></audio>
+
+<script>
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURAÇÃO — cole aqui as Function URLs das suas Lambdas
+  // Sem credenciais, sem SDK, sem nada exposto no frontend!
+  // ═══════════════════════════════════════════════════════════════════════════
+  const UPLOAD_URL = 'https://SUA-LAMBDA-1.lambda-url.us-east-1.on.aws/';
+  const JSON_URL   = 'https://SUA-LAMBDA-2.lambda-url.us-east-1.on.aws/';
+  const DELETE_URL = 'https://SUA-LAMBDA-3.lambda-url.us-east-1.on.aws/';
+
+  // ── Referências ao DOM ─────────────────────────────────────────────────────
+  const audio          = document.getElementById('audio');
+  const btnPlay        = document.getElementById('btnPlay');
+  const btnPrev        = document.getElementById('btnPrev');
+  const btnNext        = document.getElementById('btnNext');
+  const iconPlay       = document.getElementById('iconPlay');
+  const iconPause      = document.getElementById('iconPause');
+  const progressBg     = document.getElementById('progressBg');
+  const progressFill   = document.getElementById('progressFill');
+  const timeElapsed    = document.getElementById('timeElapsed');
+  const timeDuration   = document.getElementById('timeDuration');
+  const trackTitle     = document.getElementById('trackTitle');
+  const trackSub       = document.getElementById('trackSub');
+  const playlist       = document.getElementById('playlist');
+  const coverImg       = document.getElementById('coverImg');
+  const defaultIcon    = document.getElementById('defaultIcon');
+  const volumeSlider   = document.getElementById('volume');
+  const fileMp3        = document.getElementById('fileMp3');
+  const fileThumb      = document.getElementById('fileThumb');
+  const uploadName     = document.getElementById('uploadName');
+  const btnUpload      = document.getElementById('btnUpload');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const uploadFill     = document.getElementById('uploadFill');
+  const uploadStatus   = document.getElementById('uploadStatus');
+  const labelMp3       = document.getElementById('labelMp3');
+  const labelThumb     = document.getElementById('labelThumb');
+  const labelMp3Text   = document.getElementById('labelMp3Text');
+  const labelThumbText = document.getElementById('labelThumbText');
+
+  // ── Estado do player ────────────────────────────────────────────────────────
+  let musicas    = [];
+  let currentIdx = -1;
+
+  function fmt(s) {
+    const m  = Math.floor(s / 60);
+    const ss = Math.floor(s % 60).toString().padStart(2, '0');
+    return `${m}:${ss}`;
+  }
+
+  async function carregarMusicas() {
+    try {
+      const res = await fetch('musicas.json');
+      musicas = await res.json();
+    } catch {}
+    renderPlaylist();
+  }
+
+  function renderPlaylist() {
+    playlist.innerHTML = '';
+    musicas.forEach((m, i) => {
+      const item = document.createElement('div');
+      item.className = 'playlist-item' + (i === currentIdx ? ' active' : '');
+      const deleteBtn = m.key
+        ? `<button class="btn-delete" title="Remover música" onclick="deletar(event,${i})">
+             <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+           </button>`
+        : '';
+      item.innerHTML = `<span class="idx">${i+1}</span><span class="name">${m.nome}</span>${deleteBtn}`;
+      item.onclick = () => tocar(i);
+      playlist.appendChild(item);
+    });
+  }
+
+  function tocar(idx) {
+    if (idx < 0 || idx >= musicas.length) return;
+    currentIdx = idx;
+    audio.src    = musicas[idx].url;
+    audio.volume = parseFloat(volumeSlider.value);
+    audio.play();
+    trackTitle.textContent  = musicas[idx].nome;
+    trackSub.style.display  = 'none';
+    iconPlay.style.display  = 'none';
+    iconPause.style.display = 'block';
+    if (musicas[idx].thumb) {
+      coverImg.src              = musicas[idx].thumb;
+      coverImg.style.display    = 'block';
+      defaultIcon.style.display = 'none';
+    } else {
+      coverImg.style.display    = 'none';
+      coverImg.src              = '';
+      defaultIcon.style.display = 'block';
+    }
+    renderPlaylist();
+  }
+
+  btnPlay.onclick = () => {
+    if (musicas.length === 0) return;
+    if (currentIdx === -1) { tocar(0); return; }
+    if (audio.paused) {
+      audio.play();
+      iconPlay.style.display  = 'none';
+      iconPause.style.display = 'block';
+    } else {
+      audio.pause();
+      iconPlay.style.display  = 'block';
+      iconPause.style.display = 'none';
+    }
+  };
+
+  btnNext.onclick = () => tocar((currentIdx + 1) % musicas.length);
+  btnPrev.onclick = () => tocar((currentIdx - 1 + musicas.length) % musicas.length);
+  audio.onended  = () => tocar((currentIdx + 1) % musicas.length);
+
+  audio.ontimeupdate = () => {
+    if (!audio.duration) return;
+    progressFill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+    timeElapsed.textContent  = fmt(audio.currentTime);
+    timeDuration.textContent = fmt(audio.duration);
+  };
+
+  audio.onpause = () => {
+    iconPlay.style.display  = 'block';
+    iconPause.style.display = 'none';
+  };
+
+  progressBg.onclick = e => {
+    if (!audio.duration) return;
+    const rect = progressBg.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  };
+
+  volumeSlider.oninput = () => { audio.volume = parseFloat(volumeSlider.value); };
+
+  // ── Upload ──────────────────────────────────────────────────────────────────
+
+  function checkUploadReady() {
+    btnUpload.disabled = !(fileMp3.files.length > 0 && uploadName.value.trim());
+  }
+  fileMp3.onchange = () => {
+    labelMp3Text.textContent = fileMp3.files[0]?.name ?? 'Selecionar arquivo .mp3';
+    labelMp3.classList.toggle('selected', fileMp3.files.length > 0);
+    checkUploadReady();
+  };
+  uploadName.oninput = checkUploadReady;
+  fileThumb.onchange = () => {
+    labelThumbText.textContent = fileThumb.files[0]?.name ?? 'Selecionar imagem';
+    labelThumb.classList.toggle('selected', fileThumb.files.length > 0);
+  };
+
+  // Pede presigned URL pra Lambda 1 e faz PUT via XHR (com progresso)
+  async function uploadParaS3(file, onProgress) {
+    const res = await fetch(UPLOAD_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ filename: file.name, contentType: file.type }),
+    });
+    if (!res.ok) throw new Error(`Lambda erro: ${res.status}`);
+    const { uploadUrl, publicUrl, fileKey } = await res.json();
+
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.onload  = () => xhr.status < 300 ? resolve() : reject(new Error(`S3 erro: ${xhr.status}`));
+      xhr.onerror = () => reject(new Error('Falha de rede'));
+      xhr.send(file);
+    });
+
+    return { publicUrl, fileKey };
+  }
+
+  btnUpload.onclick = async () => {
+    const nome      = uploadName.value.trim();
+    const mp3File   = fileMp3.files[0];
+    const thumbFile = fileThumb.files[0] || null;
+    if (!nome || !mp3File) return;
+
+    btnUpload.disabled = true;
+    uploadProgress.classList.add('visible');
+    uploadFill.style.width   = '0%';
+    uploadStatus.className   = 'upload-status';
+    uploadStatus.textContent = 'Iniciando upload...';
+
+    try {
+      // ── Passo 1: upload do MP3 via Lambda 1 ─────────────────────────────
+      const { publicUrl: mp3Url, fileKey: mp3Key } = await uploadParaS3(mp3File, pct => {
+        uploadFill.style.width   = (pct * (thumbFile ? 75 : 90)) + '%';
+        uploadStatus.textContent = `Enviando MP3... ${Math.round(pct * 100)}%`;
+      });
+
+      // ── Passo 2: upload da capa via Lambda 1 (opcional) ─────────────────
+      let thumbUrl = null;
+      if (thumbFile) {
+        const { publicUrl } = await uploadParaS3(thumbFile, pct => {
+          uploadFill.style.width   = (75 + pct * 15) + '%';
+          uploadStatus.textContent = `Enviando capa... ${Math.round(pct * 100)}%`;
+        });
+        thumbUrl = publicUrl;
+      }
+
+      // ── Passo 3: atualiza musicas.json via Lambda 2 ──────────────────────
+      uploadStatus.textContent = 'Salvando na playlist...';
+      const jsonRes = await fetch(JSON_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ nome, url: mp3Url, ...(thumbUrl ? { thumb: thumbUrl } : {}) }),
+      });
+      if (!jsonRes.ok) throw new Error(`Lambda JSON erro: ${jsonRes.status}`);
+
+      uploadFill.style.width = '100%';
+
+      // Adiciona na playlist local também (sem precisar dar F5)
+      musicas.push({ nome, url: mp3Url, key: mp3Key, ...(thumbUrl ? { thumb: thumbUrl } : {}) });
+      renderPlaylist();
+
+      uploadStatus.textContent = '✓ Upload concluído! Música salva na playlist.';
+      uploadStatus.className   = 'upload-status success';
+
+      uploadName.value           = '';
+      fileMp3.value              = '';
+      fileThumb.value            = '';
+      labelMp3Text.textContent   = 'Selecionar arquivo .mp3';
+      labelThumbText.textContent = 'Selecionar imagem';
+      labelMp3.classList.remove('selected');
+      labelThumb.classList.remove('selected');
+
+      setTimeout(() => {
+        uploadProgress.classList.remove('visible');
+        uploadFill.style.width = '0%';
+      }, 3000);
+
+    } catch (err) {
+      uploadStatus.textContent = `✗ Erro: ${err.message}`;
+      uploadStatus.className   = 'upload-status error';
+      btnUpload.disabled = false;
+      console.error(err);
+    }
+  };
+
+  // ── Deletar ─────────────────────────────────────────────────────────────────
+  async function deletar(e, idx) {
+    e.stopPropagation();
+    const m = musicas[idx];
+    if (!confirm(`Remover "${m.nome}" do S3?`)) return;
+
+    try {
+      const res = await fetch(DELETE_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ key: m.key, ...(m.thumbKey ? { thumbKey: m.thumbKey } : {}) }),
+      });
+      if (!res.ok) throw new Error(`Lambda erro: ${res.status}`);
+
+      // Se a música deletada estava tocando, reseta o player
+      if (idx === currentIdx) {
+        audio.pause();
+        audio.src                 = '';
+        currentIdx                = -1;
+        trackTitle.textContent    = 'Nenhuma música';
+        trackSub.style.display    = 'block';
+        coverImg.style.display    = 'none';
+        defaultIcon.style.display = 'block';
+        progressFill.style.width  = '0%';
+        timeElapsed.textContent   = '0:00';
+        timeDuration.textContent  = '0:00';
+      } else if (idx < currentIdx) {
+        currentIdx--;
+      }
+
+      musicas.splice(idx, 1);
+      renderPlaylist();
+
+    } catch (err) {
+      alert(`Erro ao deletar: ${err.message}`);
+      console.error(err);
+    }
+  }
+
+  carregarMusicas();
+</script>
+</body>
+</html>
