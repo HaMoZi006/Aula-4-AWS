@@ -267,13 +267,27 @@
     return `${m}:${ss}`;
   }
 
-  async function carregarMusicas() {
-    try {
-      const res = await fetch('musicas.json');
-      musicas = await res.json();
-    } catch {}
-    renderPlaylist();
-  }
+
+async function carregarMusicas() {
+  try {
+    const res = await fetch('musicas.json?t=' + Date.now());
+    musicas = await res.json();
+
+    // Para músicas da pasta uploads/, reconstrói o key a partir da URL
+    musicas = musicas.map(m => {
+      if (m.url.includes('/uploads/') && !m.key) {
+        const key = 'uploads/' + decodeURIComponent(m.url.split('/uploads/')[1]);
+        const thumbKey = m.thumb?.includes('/uploads/')
+          ? 'uploads/' + decodeURIComponent(m.thumb.split('/uploads/')[1])
+          : null;
+        return { ...m, key, ...(thumbKey ? { thumbKey } : {}) };
+      }
+      return m;
+    });
+
+  } catch {}
+  renderPlaylist();
+}
 
   function renderPlaylist() {
     playlist.innerHTML = '';
