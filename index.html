@@ -479,7 +479,7 @@ async function carregarMusicas() {
     if (!confirm(`Remover "${m.nome}" do S3?`)) return;
 
     try {
-      const res = await fetch(DELETE_URL, {
+      const res = await fetch(DELETE_JSON_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ key: m.key, ...(m.thumbKey ? { thumbKey: m.thumbKey } : {}) }),
